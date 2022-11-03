@@ -1,0 +1,112 @@
+DROP TABLE TB_CATEGORIA;
+DROP TABLE TB_LIVRO;
+DROP TABLE TB_ESTATISTICA;
+
+DROP SEQUENCE SQ_CATEGORIA;
+DROP SEQUENCE SQ_LIVRO;
+
+CREATE TABLE TB_CATEGORIA (
+    CD_CATEGORIA NUMBER(3) PRIMARY KEY,
+    NM_CATEGORIA VARCHAR2(40) NOT NULL
+);
+
+CREATE SEQUENCE SQ_CATEGORIA
+    START WITH 1
+    INCREMENT BY 1;
+
+
+INSERT INTO tb_categoria VALUES (SQ_CATEGORIA.NEXTVAL, 'FICÇÃO');
+INSERT INTO tb_categoria VALUES (SQ_CATEGORIA.NEXTVAL, 'AUTOAJUDA');
+INSERT INTO tb_categoria VALUES (SQ_CATEGORIA.NEXTVAL, 'ROMANCE');
+INSERT INTO tb_categoria VALUES (SQ_CATEGORIA.NEXTVAL, 'TECNOLOGIA');
+
+SELECT * FROM tb_categoria;
+-------------------------------------------------------------------------------
+CREATE TABLE TB_LIVRO (
+    CD_LIVRO NUMBER(3) PRIMARY KEY,
+    TITULO VARCHAR2(50) NOT NULL,
+    PRECO NUMERIC(10,2) NOT NULL,
+    CD_CATEGORIA NUMBER(3) 
+);
+
+ALTER TABLE TB_LIVRO 
+ADD CONSTRAINT fk_categoria_livro 
+    FOREIGN KEY (CD_CATEGORIA)
+    REFERENCES TB_CATEGORIA(CD_CATEGORIA);
+
+CREATE SEQUENCE SQ_LIVRO
+    START WITH 1
+    INCREMENT BY 1;
+
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'I, ROBOT', 25.00, 1);
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'NEUROMANCER', 40.00 ,1);
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'HARRY POTTER E A PEDRA FILOSOFAL', 90.00, 1);
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'O MILAGRE DA MANHÃ', 45.00, 2);
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'O PODER DO HÁBITO', 30.00, 2);
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'A CULPA É DAS ESTRELAS', 50.00, 3);
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'CÓDIGO LIMPO', 80.00, 4);
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'PL/SQL ORACLE', 60.00, 4);
+-------------------------------------------------------------------------------------
+
+SELECT C.NM_CATEGORIA, COUNT(L.CD_LIVRO), AVG(L.PRECO) 
+FROM tb_categoria C 
+INNER JOIN tb_livro L ON C.cd_categoria = L.cd_categoria
+GROUP BY C.NM_CATEGORIA;
+
+--------------------------------------------------------------------------------
+CREATE TABLE TB_ESTATISTICA (
+    NM_CATEGORIA VARCHAR2(40),
+    TOTAL_LIVROS NUMBER(3),
+    PRECO_MEDIO NUMBER(10,2)
+);
+
+DROP TABLE TB_ESTATISTICA;
+DELETE FROM TB_ESTATISTICA;
+--------------------------------------------------------------------------------
+
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'T-SQL', 50.00, 4);
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'LIVRO ROMANCE', 80.00, 3);
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'LIVRO X', 80.00, 1);
+
+DELETE tb_livro WHERE titulo = 'NEUROMANCER';
+
+SELECT * FROM tb_estatistica;
+SELECT * FROM tb_categoria;
+
+
+CREATE OR REPLACE TRIGGER TG_ATUALIZAR_ESTATISTICA 
+AFTER INSERT OR UPDATE OR DELETE ON TB_LIVRO
+DECLARE 
+    COD_CATEGORIA TB_CATEGORIA.cd_categoria%TYPE;
+    TOTAL TB_LIVRO.cd_livro%TYPE;
+    NOME_CATEGORIA tb_categoria.nm_categoria%TYPE;
+    PRECO tb_livro.preco%TYPE;
+BEGIN
+    DELETE FROM TB_ESTATISTICA;
+    
+    FOR R_LIV IN ( SELECT C.NM_CATEGORIA AS NOME, COUNT(L.CD_LIVRO) AS TOTAL, AVG(L.PRECO) AS PRECO 
+                    FROM tb_categoria C 
+                    INNER JOIN tb_livro L ON C.cd_categoria = L.cd_categoria
+                    GROUP BY C.NM_CATEGORIA) LOOP
+        NOME_CATEGORIA := R_LIV.NOME;
+        TOTAL := R_LIV.total;
+        PRECO := R_LIV.PRECO;
+        
+        INSERT INTO tb_estatistica VALUES (NOME_CATEGORIA, TOTAL, PRECO);
+    END LOOP;
+    
+
+    /*INSERT INTO tb_estatistica (NM_CATEGORIA,TOTAL_LIVROS,PRECO_MEDIO) 
+    SELECT C.NM_CATEGORIA, COUNT(L.CD_LIVRO), AVG(L.PRECO) 
+    FROM tb_categoria C 
+    INNER JOIN tb_livro L ON C.cd_categoria = L.cd_categoria
+    GROUP BY C.NM_CATEGORIA;
+    
+    
+    /*INSERT INTO tb_estatistica (NM_CATEGORIA,TOTAL_LIVROS,PRECO_MEDIO)
+    SELECT (select NM_CATEGORIA from tb_categoria where CD_CATEGORIA = COD_CATEGORIA),
+           (select sum(cd_livro) from tb_livro where CD_LIVRO = COD_LIVRO),
+           (select avg(preco) from tb_livro where cd_livro = cod_livro);*/
+END;
+
+INSERT INTO tb_livro VALUES (SQ_LIVRO.NEXTVAL, 'LIVRO Y', 80.00, 2);
